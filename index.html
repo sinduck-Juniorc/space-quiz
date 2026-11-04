@@ -147,7 +147,7 @@ function render() {
   const box = $("opts"); box.innerHTML = "";
   d.o.forEach((t, n) => {
     const b = document.createElement("button");
-    b.className = "opt"; b.textContent = t;
+    b.className = "opt"; b.textContent = `${n + 1}. ${t}`;
     b.onclick = () => answer(n);
     box.appendChild(b);
   });
@@ -186,6 +186,20 @@ $("again").onclick = () => {
   i = 0; score = 0; $("score").textContent = 0;
   $("result").classList.add("hidden"); $("quiz").classList.remove("hidden"); render();
 };
+document.addEventListener("keydown", event => {
+  if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+  if (/^[1-4]$/.test(event.key)) {
+    if (!$("quiz").classList.contains("hidden") && !locked) {
+      event.preventDefault();
+      answer(Number(event.key) - 1);
+    }
+    return;
+  }
+  if (event.key !== "Enter") return;
+  if ($("result").classList.contains("hidden")) {
+    if (locked && document.activeElement !== $("next")) $("next").click();
+  } else if (document.activeElement !== $("again")) $("again").click();
+});
 render();
 </script>
 </body>
