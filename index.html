@@ -133,11 +133,25 @@ const QUESTIONS = [
   { q: "블랙홀에서 빛조차 빠져나올 수 없는 경계는?", o: ["코로나", "사건의 지평선", "오르트 구름", "카이퍼 벨트"], a: 1, e: "사건의 지평선 안쪽에서는 탈출이 불가능합니다." },
   { q: "태양계에서 가장 높은 화산이 있는 행성은?", o: ["지구", "금성", "화성", "목성"], a: 2, e: "화성의 올림푸스 산은 높이 약 22km입니다." }
 ];
+function shuffled(items) {
+  const result = [...items];
+  for (let n = result.length - 1; n > 0; n--) {
+    const j = Math.floor(Math.random() * (n + 1));
+    [result[n], result[j]] = [result[j], result[n]];
+  }
+  return result;
+}
+function createQuestions() {
+  return shuffled(QUESTIONS.map(d => {
+    const options = shuffled(d.o.map((text, index) => ({ text, index })));
+    return { ...d, o: options.map(option => option.text), a: options.findIndex(option => option.index === d.a) };
+  }));
+}
 const $ = id => document.getElementById(id);
-let i = 0, score = 0, locked = false;
+let i = 0, score = 0, locked = false, quizQuestions = createQuestions();
 
 function render() {
-  const d = QUESTIONS[i];
+  const d = quizQuestions[i];
   $("count").textContent = `${i + 1} / ${QUESTIONS.length}`;
   $("bar").style.width = (i / QUESTIONS.length * 100) + "%";
   $("barWrap").setAttribute("aria-valuenow", i);
@@ -155,7 +169,7 @@ function render() {
 }
 function answer(n) {
   if (locked) return; locked = true;
-  const d = QUESTIONS[i], btns = [...document.querySelectorAll(".opt")];
+  const d = quizQuestions[i], btns = [...document.querySelectorAll(".opt")];
   btns.forEach((b, k) => { b.disabled = true; if (k !== n && k !== d.a) b.classList.add("dim"); });
   btns[d.a].classList.add("correct");
   const ok = n === d.a;
@@ -183,7 +197,7 @@ function finish() {
 }
 $("next").onclick = () => { ++i < QUESTIONS.length ? render() : finish(); };
 $("again").onclick = () => {
-  i = 0; score = 0; $("score").textContent = 0;
+  i = 0; score = 0; quizQuestions = createQuestions(); $("score").textContent = 0;
   $("result").classList.add("hidden"); $("quiz").classList.remove("hidden"); render();
 };
 render();
