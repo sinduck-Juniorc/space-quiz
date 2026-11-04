@@ -14,7 +14,9 @@ Single-file space exploration quiz (Korean UI). Everything — HTML, CSS, JS, an
 ## Architecture
 
 - Question data is the `QUESTIONS` array: `{ q, o: [4 options], a: correctIndex, e: explanation }`. Changing the question count requires updating the hardcoded `10` in the header text, the initial `1 / 10` counter, and `aria-valuemax` on `#barWrap`.
-- State is module-level `i` (current question), `score`, and `locked` (prevents double answers). Flow: `render()` → `answer(n)` → `#next` click → `render()` or `finish()`; `#again` resets state and calls `render()`.
+- State is module-level `i` (current question), `score`, `locked` (prevents double answers), and `deck`. `QUESTIONS` is the source data; `buildDeck()` makes `deck`, a shuffled copy (question and option order) with `a` recomputed, and all gameplay code reads `deck`, not `QUESTIONS`. Flow: `render()` → `answer(n)` → `#next` click → `render()` or `finish()`; `#again` resets state, rebuilds the deck, and calls `render()`.
+- Keyboard: a document `keydown` handler maps `1`–`4` to options and `Enter` to `#next`/`#again` (skipped when a button is focused, since native Enter already clicks it). `finish()` focuses `#again`.
+- Best score is stored in `localStorage` under `spaceQuizBest` (wrapped in try/catch) and shown in `#best` on the result card.
 - Two sibling cards, `#quiz` and `#result`, are toggled with the `.hidden` class.
 - The progress bar width and `aria-valuenow` are set in both `render()` (answered-so-far) and `answer()` (answered including current). Keep both in sync when editing.
 - Result emoji and message tiers are a ternary chain in `finish()` keyed on score ratio.
@@ -29,4 +31,4 @@ Single-file space exploration quiz (Korean UI). Everything — HTML, CSS, JS, an
 
 ## Verifying changes
 
-Test in the integrated browser canvas (open the `file://` URL) and drive the quiz with `evaluate_javascript`. The globals `QUESTIONS`, `i`, `score`, `render`, and `answer` are reachable from the page context. The browser may have reduced-motion enabled, which suppresses animations, so `getComputedStyle(...).animationName` reads `none` there.
+Test in the integrated browser canvas (open the `file://` URL) and drive the quiz with `evaluate_javascript`. The globals `QUESTIONS`, `deck`, `i`, `score`, `render`, and `answer` are reachable from the page context. The browser may have reduced-motion enabled, which suppresses animations, so `getComputedStyle(...).animationName` reads `none` there.

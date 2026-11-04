@@ -65,6 +65,12 @@ h1 { font-size: 22px; margin: 0 0 4px; }
 .opt:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
 .opt:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .opt:disabled { cursor: default; }
+.opt .num {
+  display: inline-block; width: 22px; height: 22px; line-height: 22px; margin-right: 10px; text-align: center;
+  border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-weight: 700; color: var(--muted);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+}
+.best { font-weight: 600; color: var(--text); margin: 0 0 18px; }
 .opt.correct { background: var(--ok-bg); border-color: var(--ok); animation: pulse .6s; }
 .opt.wrong { background: var(--bad-bg); border-color: var(--bad); animation: shake .5s; }
 .opt.dim { opacity: .55; }
@@ -117,6 +123,7 @@ h1 { font-size: 22px; margin: 0 0 4px; }
     <div class="big" id="final"></div>
     <h2 id="title" style="margin:0;font-size:18px"></h2>
     <p id="msg"></p>
+    <div class="best" id="best"></div>
     <button class="btn" id="again">다시 도전하기</button>
   </section>
 </main>
@@ -134,12 +141,36 @@ const QUESTIONS = [
   { q: "태양계에서 가장 높은 화산이 있는 행성은?", o: ["지구", "금성", "화성", "목성"], a: 2, e: "화성의 올림푸스 산은 높이 약 22km입니다." }
 ];
 const $ = id => document.getElementById(id);
-let i = 0, score = 0, locked = false;
+const BEST_KEY = "spaceQuizBest";
+let i = 0, score = 0, locked = false, deck = [];
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let k = a.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [a[k], a[j]] = [a[j], a[k]];
+  }
+  return a;
+}
+// 문제 순서와 보기 순서를 섞고, 섞인 보기 기준으로 정답 인덱스를 다시 계산한다.
+function buildDeck() {
+  deck = shuffle(QUESTIONS).map(d => {
+    const o = shuffle(d.o.map((t, n) => ({ t, ok: n === d.a })));
+    return { q: d.q, e: d.e, o: o.map(x => x.t), a: o.findIndex(x => x.ok) };
+  });
+}
+function loadBest() {
+  try { const v = parseInt(localStorage.getItem(BEST_KEY), 10); return Number.isFinite(v) ? v : null; }
+  catch (e) { return null; }
+}
+function saveBest(v) {
+  try { localStorage.setItem(BEST_KEY, String(v)); } catch (e) {}
+}
 
 function render() {
-  const d = QUESTIONS[i];
-  $("count").textContent = `${i + 1} / ${QUESTIONS.length}`;
-  $("bar").style.width = (i / QUESTIONS.length * 100) + "%";
+  const d = deck[i];
+  $("count").textContent = `${i + 1} / ${deck.length}`;
+  $("bar").style.width = (i / deck.length * 100) + "%";
   $("barWrap").setAttribute("aria-valuenow", i);
   $("q").textContent = d.q;
   $("fb").textContent = ""; $("fb").className = "fb";
@@ -147,7 +178,11 @@ function render() {
   const box = $("opts"); box.innerHTML = "";
   d.o.forEach((t, n) => {
     const b = document.createElement("button");
-    b.className = "opt"; b.textContent = t;
+    b.className = "opt";
+    const num = document.createElement("span");
+    num.className = "num"; num.textContent = n + 1; num.setAttribute("aria-hidden", "true");
+    b.append(num, t);
+    b.setAttribute("aria-keyshortcuts", String(n + 1));
     b.onclick = () => answer(n);
     box.appendChild(b);
   });
@@ -155,7 +190,7 @@ function render() {
 }
 function answer(n) {
   if (locked) return; locked = true;
-  const d = QUESTIONS[i], btns = [...document.querySelectorAll(".opt")];
+  const d = deck[i], btns = [...document.querySelectorAll(".opt")];
   btns.forEach((b, k) => { b.disabled = true; if (k !== n && k !== d.a) b.classList.add("dim"); });
   btns[d.a].classList.add("correct");
   const ok = n === d.a;
@@ -165,27 +200,44 @@ function answer(n) {
   } else btns[n].classList.add("wrong");
   $("fb").className = "fb " + (ok ? "ok" : "bad");
   $("fb").innerHTML = `<span class="tag">${ok ? "✅ 정답!" : "❌ 오답!"}</span> ${d.e}`;
-  $("bar").style.width = ((i + 1) / QUESTIONS.length * 100) + "%";
+  $("bar").style.width = ((i + 1) / deck.length * 100) + "%";
   $("barWrap").setAttribute("aria-valuenow", i + 1);
-  $("next").textContent = i === QUESTIONS.length - 1 ? "결과 보기" : "다음 문제";
+  $("next").textContent = i === deck.length - 1 ? "결과 보기" : "다음 문제";
   $("next").hidden = false; $("next").focus();
 }
 function finish() {
   $("quiz").classList.add("hidden"); $("result").classList.remove("hidden");
-  const p = score / QUESTIONS.length;
+  const p = score / deck.length;
   const [e, t, m] = p === 1 ? ["🏆", "우주 비행사 만점!", "완벽해요! 우주 전문가시네요."]
     : p >= .8 ? ["🚀", "우주 탐험가", "훌륭해요! 거의 다 맞혔어요."]
     : p >= .5 ? ["🌍", "견습 우주인", "좋은 출발이에요. 조금만 더 공부해 봐요!"]
     : p >= .3 ? ["🛰️", "궤도 진입 중", "다시 도전하면 더 높이 날 수 있어요."]
     : ["🌑", "아직 지구 근처", "괜찮아요, 다시 한번 도전해 보세요!"];
   $("emoji").textContent = e; $("title").textContent = t; $("msg").textContent = m;
-  $("final").textContent = `${score} / ${QUESTIONS.length}`;
+  $("final").textContent = `${score} / ${deck.length}`;
+  const prev = loadBest();
+  const isNew = prev === null || score > prev;
+  if (isNew) saveBest(score);
+  $("best").textContent = `최고 점수 ${isNew ? score : prev} / ${deck.length}` + (isNew && prev !== null ? " 🎉 새 기록!" : "");
+  $("again").focus();
 }
-$("next").onclick = () => { ++i < QUESTIONS.length ? render() : finish(); };
+$("next").onclick = () => { ++i < deck.length ? render() : finish(); };
 $("again").onclick = () => {
-  i = 0; score = 0; $("score").textContent = 0;
+  i = 0; score = 0; $("score").textContent = 0; buildDeck();
   $("result").classList.add("hidden"); $("quiz").classList.remove("hidden"); render();
 };
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const onButton = e.target.tagName === "BUTTON";
+  if (/^[1-4]$/.test(e.key)) {
+    const btn = document.querySelectorAll(".opt")[+e.key - 1];
+    if (btn && !locked && !$("quiz").classList.contains("hidden")) { e.preventDefault(); btn.click(); }
+  } else if (e.key === "Enter" && !onButton) {
+    if (!$("result").classList.contains("hidden")) $("again").click();
+    else if (!$("next").hidden) $("next").click();
+  }
+});
+buildDeck();
 render();
 </script>
 </body>
