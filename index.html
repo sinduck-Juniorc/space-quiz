@@ -71,6 +71,17 @@ h1 { font-size: 22px; margin: 0 0 4px; }
   font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
 }
 .best { font-weight: 600; color: var(--text); margin: 0 0 18px; }
+.review { text-align: left; margin: 0 0 20px; }
+.review h3 { font-size: 15px; margin: 0 0 8px; }
+.review details { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+.review summary { cursor: pointer; padding: 10px 12px; font-weight: 600; border-radius: 10px; }
+.review summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.review .rv { padding: 0 12px 12px; font-size: 14px; }
+.review .rv p { margin: 4px 0; color: var(--text); }
+.review .rv .no { color: var(--bad); font-weight: 600; }
+.review .rv .yes { color: var(--ok); font-weight: 600; }
+.review .rv .exp { color: var(--muted); }
+.review .perfect { text-align: center; font-weight: 600; color: var(--ok); }
 .opt.correct { background: var(--ok-bg); border-color: var(--ok); animation: pulse .6s; }
 .opt.wrong { background: var(--bad-bg); border-color: var(--bad); animation: shake .5s; }
 .opt.dim { opacity: .55; }
@@ -124,6 +135,7 @@ h1 { font-size: 22px; margin: 0 0 4px; }
     <h2 id="title" style="margin:0;font-size:18px"></h2>
     <p id="msg"></p>
     <div class="best" id="best"></div>
+    <div class="review" id="review"></div>
     <button class="btn" id="again">다시 도전하기</button>
   </section>
 </main>
@@ -142,7 +154,7 @@ const QUESTIONS = [
 ];
 const $ = id => document.getElementById(id);
 const BEST_KEY = "spaceQuizBest";
-let i = 0, score = 0, locked = false, deck = [];
+let i = 0, score = 0, locked = false, deck = [], history = [];
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -194,6 +206,7 @@ function answer(n) {
   btns.forEach((b, k) => { b.disabled = true; if (k !== n && k !== d.a) b.classList.add("dim"); });
   btns[d.a].classList.add("correct");
   const ok = n === d.a;
+  history.push({ q: d.q, picked: d.o[n], correct: d.o[d.a], e: d.e, ok });
   if (ok) {
     score++; const s = $("score"); s.textContent = score;
     s.classList.remove("pop"); void s.offsetWidth; s.classList.add("pop");
@@ -204,6 +217,31 @@ function answer(n) {
   $("barWrap").setAttribute("aria-valuenow", i + 1);
   $("next").textContent = i === deck.length - 1 ? "결과 보기" : "다음 문제";
   $("next").hidden = false; $("next").focus();
+}
+function renderReview() {
+  const box = $("review"); box.textContent = "";
+  const wrong = history.filter(h => !h.ok);
+  if (!wrong.length) {
+    const p = document.createElement("p");
+    p.className = "perfect"; p.textContent = "🎉 모두 맞혔어요! 복습할 문제가 없어요.";
+    box.append(p); return;
+  }
+  const h3 = document.createElement("h3");
+  h3.textContent = `틀린 문제 복습 (${wrong.length})`;
+  box.append(h3);
+  wrong.forEach(h => {
+    const det = document.createElement("details");
+    const sum = document.createElement("summary"); sum.textContent = h.q;
+    const rv = document.createElement("div"); rv.className = "rv";
+    const line = (cls, label, text) => {
+      const p = document.createElement("p");
+      const s = document.createElement("span"); s.className = cls; s.textContent = label;
+      p.append(s, " " + text); return p;
+    };
+    const exp = document.createElement("p"); exp.className = "exp"; exp.textContent = h.e;
+    rv.append(line("no", "✗ 내 답:", h.picked), line("yes", "✓ 정답:", h.correct), exp);
+    det.append(sum, rv); box.append(det);
+  });
 }
 function finish() {
   $("quiz").classList.add("hidden"); $("result").classList.remove("hidden");
@@ -219,16 +257,17 @@ function finish() {
   const isNew = prev === null || score > prev;
   if (isNew) saveBest(score);
   $("best").textContent = `최고 점수 ${isNew ? score : prev} / ${deck.length}` + (isNew && prev !== null ? " 🎉 새 기록!" : "");
+  renderReview();
   $("again").focus();
 }
 $("next").onclick = () => { ++i < deck.length ? render() : finish(); };
 $("again").onclick = () => {
-  i = 0; score = 0; $("score").textContent = 0; buildDeck();
+  i = 0; score = 0; history = []; $("score").textContent = 0; buildDeck();
   $("result").classList.add("hidden"); $("quiz").classList.remove("hidden"); render();
 };
 document.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  const onButton = e.target.tagName === "BUTTON";
+  const onButton = e.target.tagName === "BUTTON" || e.target.closest("details");
   if (/^[1-4]$/.test(e.key)) {
     const btn = document.querySelectorAll(".opt")[+e.key - 1];
     if (btn && !locked && !$("quiz").classList.contains("hidden")) { e.preventDefault(); btn.click(); }
