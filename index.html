@@ -88,6 +88,15 @@ h1 { font-size: 22px; margin: 0 0 4px; }
 .emoji { font-size: 64px; line-height: 1.2; animation: bounce 1s infinite alternate ease-in-out; }
 .big { font-size: 40px; font-weight: 800; margin: 4px 0; color: var(--accent); }
 .result p { color: var(--muted); margin: 6px 0 20px; }
+.review { margin: 20px 0; text-align: left; }
+.review h3 { font-size: 17px; margin: 0 0 10px; }
+.review details { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+.review summary { cursor: pointer; font-weight: 600; }
+.review .review-item { margin: 8px 0 0; }
+.review .selected { color: var(--bad); }
+.review .correct { color: var(--ok); }
+.review .explanation { color: var(--muted); }
+.review .review-celebration { color: var(--ok); margin: 8px 0 0; text-align: center; }
 .hidden { display: none; }
 @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
 @keyframes pulse { 0%{transform:scale(1);box-shadow:0 0 0 0 var(--ok)} 50%{transform:scale(1.03)} 100%{transform:scale(1);box-shadow:0 0 0 12px transparent} }
@@ -124,6 +133,7 @@ h1 { font-size: 22px; margin: 0 0 4px; }
     <h2 id="title" style="margin:0;font-size:18px"></h2>
     <p id="msg"></p>
     <div class="best" id="best"></div>
+    <div class="review" id="review"></div>
     <button class="btn" id="again">다시 도전하기</button>
   </section>
 </main>
@@ -142,7 +152,7 @@ const QUESTIONS = [
 ];
 const $ = id => document.getElementById(id);
 const BEST_KEY = "spaceQuizBest";
-let i = 0, score = 0, locked = false, deck = [];
+let i = 0, score = 0, locked = false, deck = [], responses = [];
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -194,6 +204,7 @@ function answer(n) {
   btns.forEach((b, k) => { b.disabled = true; if (k !== n && k !== d.a) b.classList.add("dim"); });
   btns[d.a].classList.add("correct");
   const ok = n === d.a;
+  responses[i] = { selected: n, correct: ok };
   if (ok) {
     score++; const s = $("score"); s.textContent = score;
     s.classList.remove("pop"); void s.offsetWidth; s.classList.add("pop");
@@ -215,6 +226,32 @@ function finish() {
     : ["🌑", "아직 지구 근처", "괜찮아요, 다시 한번 도전해 보세요!"];
   $("emoji").textContent = e; $("title").textContent = t; $("msg").textContent = m;
   $("final").textContent = `${score} / ${deck.length}`;
+  const review = $("review"); review.replaceChildren();
+  const missed = responses.map((response, n) => ({ response, d: deck[n] })).filter(({ response }) => !response.correct);
+  if (missed.length === 0) {
+    const message = document.createElement("p");
+    message.className = "review-celebration";
+    message.textContent = "🎉 모든 문제를 맞혔어요! 완벽한 우주 탐험입니다.";
+    review.appendChild(message);
+  } else {
+    const heading = document.createElement("h3"); heading.textContent = "틀린 문제 복습";
+    review.appendChild(heading);
+    missed.forEach(({ response, d }) => {
+      const details = document.createElement("details");
+      const summary = document.createElement("summary"); summary.textContent = d.q;
+      const selected = document.createElement("p");
+      selected.className = "review-item selected";
+      selected.textContent = `❌ 내가 고른 답: ${d.o[response.selected]}`;
+      const correct = document.createElement("p");
+      correct.className = "review-item correct";
+      correct.textContent = `✅ 정답: ${d.o[d.a]}`;
+      const explanation = document.createElement("p");
+      explanation.className = "review-item explanation";
+      explanation.textContent = `해설: ${d.e}`;
+      details.append(summary, selected, correct, explanation);
+      review.appendChild(details);
+    });
+  }
   const prev = loadBest();
   const isNew = prev === null || score > prev;
   if (isNew) saveBest(score);
@@ -223,7 +260,7 @@ function finish() {
 }
 $("next").onclick = () => { ++i < deck.length ? render() : finish(); };
 $("again").onclick = () => {
-  i = 0; score = 0; $("score").textContent = 0; buildDeck();
+  i = 0; score = 0; responses = []; $("score").textContent = 0; buildDeck();
   $("result").classList.add("hidden"); $("quiz").classList.remove("hidden"); render();
 };
 document.addEventListener("keydown", e => {
