@@ -1,0 +1,42 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at bottom, #1b2735, #090a0f);
+  font-family: "Malgun Gothic", sans-serif; color: #fff; overflow: hidden;
+}
+.stars {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+    radial-gradient(1px 1px at 90px 120px, #fff, transparent),
+    radial-gradient(2px 2px at 160px 70px, #ddd, transparent),
+    radial-gradient(1px 1px at 230px 180px, #fff, transparent);
+  background-size: 250px 200px; animation: drift 60s linear infinite;
+}
+@keyframes drift { to { background-position: -250px 400px; } }
+.card {
+  position: relative; z-index: 1; width: min(560px, 92vw); padding: 28px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2);
+  border-radius: 18px; backdrop-filter: blur(8px); text-align: center;
+}
+h1 { margin-top: 0; }
+#progress { height: 8px; background: rgba(255,255,255,.15); border-radius: 4px; overflow: hidden; }
+#bar { height: 100%; width: 0; background: linear-gradient(90deg, #6c8cff, #b46cff); transition: width .4s; }
+#status { opacity: .7; }
+#choices { display: grid; gap: 10px; margin: 18px 0; }
+.choice {
+  padding: 12px; font-size: 1rem; color: #fff; cursor: pointer;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.3);
+  border-radius: 10px; transition: transform .15s, background .2s;
+}
+.choice:hover:not(:disabled) { transform: scale(1.03); background: rgba(255,255,255,.2); }
+.choice.correct { background: #2ecc71; animation: pop .5s; }
+.choice.wrong { background: #e74c3c; animation: shake .4s; }
+@keyframes pop { 50% { transform: scale(1.1); } }
+@keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+#feedback { min-height: 1.5em; font-weight: bold; animation: fade .4s; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } }
+button#next, button#restart {
+  padding: 10px 24px; font-size: 1rem; border: 0; border-radius: 20px; cursor: pointer;
+  background: linear-gradient(90deg, #6c8cff, #b46cff); color: #fff;
+}
